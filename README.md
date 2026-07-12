@@ -22,12 +22,12 @@ The application is structured into a lightweight frontend rendering layer and a 
 
 ```mermaid
 graph TD
-    React[React 19 Frontend] <-->|Tauri IPC Invoke/Emit| Tauri[Tauri Core Bridge]
-    Tauri <-->|Mutex Lock State| TM[Rust Transfer Manager]
-    TM -->|Queue Processor| Worker[Concurrent Worker Pool]
-    Worker -->|Spawn argv[] args| ADB[ADB Sidecar Process]
-    TM -->|Spawn 250ms Poller| SizePoller[Disk Size Poller]
-    SizePoller -->|Check Disk Size| Disk[Storage Disk]
+    React[React 19 Frontend] <-->|"Tauri IPC Invoke/Emit"| Tauri[Tauri Core Bridge]
+    Tauri <-->|"Mutex Lock State"| TM[Rust Transfer Manager]
+    TM -->|"Queue Processor"| Worker[Concurrent Worker Pool]
+    Worker -->|"Spawn argv[] args"| ADB[ADB Sidecar Process]
+    TM -->|"Spawn 250ms Poller"| SizePoller[Disk Size Poller]
+    SizePoller -->|"Check Disk Size"| Disk[Storage Disk]
 ```
 
 ### 1. Tauri Rust Core Backend
