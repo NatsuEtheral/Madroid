@@ -62,7 +62,7 @@ graph TD
 1. Clone the repository and navigate to the directory:
    ```bash
    git clone <repo-url>
-   cd MacToAndroid
+   cd Madroid
    ```
 
 2. Install dependencies:
@@ -79,3 +79,14 @@ graph TD
    ```bash
    npm run tauri build
    ```
+
+---
+
+## ☕ Acknowledgments & Open Source Credits
+
+This project stands on the shoulders of giants. We want to thank and credit the following open-source projects that make this application possible:
+
+*   **[Android Debug Bridge (ADB)](https://developer.android.com/tools/adb)** - Developed by Google / Android Open Source Project. Subject to the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+*   **[Tauri Framework](https://tauri.app/)** - Subject to the MIT / Apache 2.0 Licenses.
+*   **[Lucide Icons](https://lucide.dev/)** - Subject to the ISC License.
+

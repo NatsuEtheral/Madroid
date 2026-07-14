@@ -11,12 +11,12 @@ import {
   Trash2,
   Edit3,
   FolderPlus,
+  FolderUp,
   X,
   Wifi,
   Usb,
   AlertTriangle,
   Settings,
-  Activity,
   AlertCircle,
   Info
 } from "lucide-react";
@@ -29,6 +29,44 @@ const formatBytes = (bytes: number) => {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
+
+interface BreadcrumbsProps {
+  path: string;
+  onNavigate: (path: string) => void;
+}
+
+const Breadcrumbs = ({ path, onNavigate }: BreadcrumbsProps) => {
+  const segments = path.split("/").filter(Boolean);
+  
+  const handleSegmentClick = (index: number) => {
+    const targetPath = "/" + segments.slice(0, index + 1).join("/");
+    onNavigate(targetPath);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 text-xs text-slate-400 font-mono-val select-none flex-1">
+      <button
+        onClick={() => onNavigate("/")}
+        className="hover:text-white transition-colors cursor-pointer"
+      >
+        /
+      </button>
+      {segments.map((segment, idx) => (
+        <span key={idx} className="flex items-center gap-1.5">
+          <span className="text-slate-700">/</span>
+          <button
+            onClick={() => handleSegmentClick(idx)}
+            className={`hover:text-white transition-colors cursor-pointer ${
+              idx === segments.length - 1 ? "text-indigo-400 font-medium" : ""
+            }`}
+          >
+            {segment}
+          </button>
+        </span>
+      ))}
+    </div>
+  );
 };
 
 // Generic Virtualized List implementation to prevent library/ESM package bugs
@@ -146,10 +184,10 @@ const FileRow = ({ index, style, data }: FileRowProps) => {
       onClick={handleRowClick}
       draggable={true}
       onDragStart={handleDragStart}
-      className={`flex items-center px-4 py-2 border-b border-slate-900/50 cursor-pointer select-none transition-colors duration-150 ${
+      className={`flex items-center px-4 py-1 border-b border-slate-900/40 cursor-pointer select-none transition-colors duration-150 ${
         isSelected
-          ? "bg-indigo-600/30 border-l-2 border-l-indigo-500"
-          : "hover:bg-slate-800/40 text-slate-300"
+          ? "bg-indigo-650/15 border-l-2 border-l-indigo-500"
+          : "hover:bg-slate-800/25 text-slate-300"
       }`}
     >
       <input
@@ -157,19 +195,19 @@ const FileRow = ({ index, style, data }: FileRowProps) => {
         checked={isSelected}
         onClick={(e) => e.stopPropagation()}
         onChange={handleCheckboxChange}
-        className="w-4 h-4 mr-3 accent-indigo-600 cursor-pointer shrink-0 rounded border-slate-700 bg-slate-950/40"
+        className="w-3.5 h-3.5 mr-3 accent-indigo-600 cursor-pointer shrink-0 rounded border-slate-700 bg-slate-950/40"
       />
 
       {file.is_dir ? (
-        <Folder className="w-5 h-5 mr-3 text-indigo-400 fill-indigo-400/10 flex-shrink-0" />
+        <Folder className="w-4 h-4 mr-3 text-amber-500 fill-amber-500/10 flex-shrink-0" />
       ) : (
-        <File className="w-5 h-5 mr-3 text-slate-400 flex-shrink-0" />
+        <File className="w-4 h-4 mr-3 text-slate-400 flex-shrink-0" />
       )}
-      <span className="flex-1 truncate text-sm font-medium">{file.name}</span>
-      <span className="text-xs text-slate-500 w-24 text-right flex-shrink-0 mr-4">
+      <span className="flex-1 truncate text-xs font-medium text-slate-200">{file.name}</span>
+      <span className="text-[10px] text-slate-400 w-20 text-right flex-shrink-0 mr-4 font-mono-val">
         {file.is_dir ? "-" : formatBytes(file.size)}
       </span>
-      <span className="text-xs text-slate-500 w-32 truncate text-right flex-shrink-0">
+      <span className="text-[10px] text-slate-400 w-24 truncate text-right flex-shrink-0 font-mono-val">
         {file.modified.split("T")[0] || file.modified || "-"}
       </span>
       {file.is_dir ? (
@@ -178,10 +216,10 @@ const FileRow = ({ index, style, data }: FileRowProps) => {
             e.stopPropagation();
             onDoubleClick(file);
           }}
-          className="p-1 ml-3 hover:bg-slate-700/80 rounded text-slate-400 hover:text-white transition-colors flex-shrink-0 cursor-pointer"
+          className="p-1 ml-3 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors flex-shrink-0 cursor-pointer"
           title="Enter folder"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       ) : (
         <div className="w-6 ml-3 flex-shrink-0" />
@@ -258,6 +296,7 @@ function App() {
   // Modal states
   const [isWirelessOpen, setIsWirelessOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   
@@ -618,63 +657,64 @@ function App() {
     <div className="flex flex-col h-screen w-screen overflow-hidden text-slate-100">
       
       {/* 🚀 DEVICE & STATUS HEADER */}
-      <header className="flex items-center justify-between px-6 py-4 glass-panel border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <Smartphone className="w-6 h-6 text-indigo-400" />
-          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+      <header className="flex items-center justify-between px-6 py-2.5 bg-slate-950 border-b border-slate-900 h-11 shrink-0">
+        <div className="flex items-center gap-2">
+          <Smartphone className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold text-xs bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
             Madroid
-          </h1>
+          </span>
         </div>
 
-        {/* Device selector / status */}
-        <div className="flex items-center gap-4">
+        {/* Centered Device Pill */}
+        <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/40 border border-white/5 rounded-full shadow-inner text-[11px]">
           {devices.length > 0 ? (
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedDevice || ""}
-                onChange={(e) => handleSelectDevice(e.target.value)}
-                className="bg-slate-900 border border-slate-800 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500"
-              >
-                {devices.map((d) => (
-                  <option key={d.serial} value={d.serial}>
-                    {d.model} ({d.serial})
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-medium text-slate-400">
+            <>
+              <div className="flex items-center gap-1.5 text-slate-400">
                 {selectedDeviceDetails?.connection_type === "Wireless" ? (
-                  <Wifi className="w-3.5 h-3.5 text-green-400" />
+                  <Wifi className="w-3 h-3 text-green-400" />
                 ) : (
-                  <Usb className="w-3.5 h-3.5 text-indigo-400" />
+                  <Usb className="w-3 h-3 text-indigo-400" />
                 )}
-                <span>OS {selectedDeviceDetails?.android_version || "-"}</span>
-                {selectedDeviceDetails?.authorized ? (
-                  <span className="w-2 h-2 rounded-full bg-green-500 ml-1"></span>
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-yellow-500 ml-1"></span>
-                )}
+                <select
+                  value={selectedDevice || ""}
+                  onChange={(e) => handleSelectDevice(e.target.value)}
+                  className="bg-transparent text-slate-200 border-none outline-none focus:ring-0 font-medium cursor-pointer max-w-[120px] truncate py-0 px-0.5"
+                >
+                  {devices.map((d) => (
+                    <option key={d.serial} value={d.serial} className="bg-slate-950 text-slate-200">
+                      {d.model}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                selectedDeviceDetails?.authorized ? "bg-green-500 animate-pulse-dot" : "bg-yellow-500"
+              }`} />
+            </>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/30 border border-red-900/40 rounded-lg text-xs font-semibold text-red-400">
-              <AlertTriangle className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 text-red-400 font-medium">
+              <AlertTriangle className="w-3 h-3 animate-pulse" />
               <span>No Device Connected</span>
             </div>
           )}
+        </div>
 
+        {/* Right Actions */}
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setIsWirelessOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+            title="Wireless Handoff"
           >
             <Wifi className="w-3.5 h-3.5" />
-            Wireless Handoff
           </button>
           
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+            title="Preferences"
           >
-            <Settings className="w-4 h-4 text-slate-400" />
+            <Settings className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
@@ -728,21 +768,25 @@ function App() {
             </div>
           )}
 
-          <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/30 rounded-t-xl">
-            <div className="flex items-center gap-2">
-              <Laptop className="w-5 h-5 text-indigo-400" />
-              <span className="font-semibold text-sm">Mac Storage ({localFiles.length})</span>
-            </div>
-            
-            {/* Local breadcrumbs */}
-            <div className="flex items-center gap-1 text-xs text-slate-500 font-mono truncate max-w-md">
+          <div className="flex flex-col gap-2 p-4 border-b border-slate-900 bg-slate-950/30 rounded-t-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Laptop className="w-4 h-4 text-indigo-400" />
+                <span className="font-semibold text-xs text-slate-200">Mac Storage ({localFiles.length})</span>
+              </div>
+              
               <button
                 onClick={goUpLocal}
-                className="hover:text-slate-200 transition-colors cursor-pointer px-1 py-0.5 rounded bg-slate-900 border border-slate-800"
+                className="p-1 hover:bg-slate-800 rounded transition-colors text-slate-400 hover:text-white cursor-pointer"
+                title="Go Up"
               >
-                Up
+                <FolderUp className="w-3.5 h-3.5" />
               </button>
-              <span className="truncate">{localPath}</span>
+            </div>
+            
+            {/* Clickable breadcrumbs */}
+            <div className="flex items-center gap-1 bg-slate-950/60 px-3 py-1 rounded-lg border border-slate-900 overflow-hidden">
+              <Breadcrumbs path={localPath} onNavigate={(p) => setLocalPath(p)} />
             </div>
           </div>
 
@@ -805,7 +849,7 @@ function App() {
                 <VirtualList
                   height={500}
                   itemCount={localFiles.length}
-                  rowHeight={40}
+                  rowHeight={36}
                   rowComponent={FileRow}
                   itemData={{
                     files: localFiles,
@@ -815,12 +859,14 @@ function App() {
                     isLocal: true,
                   }}
                 />
-                <div className="absolute bottom-2 left-2 right-2 bg-slate-950/95 border border-slate-800 p-2 rounded text-[10px] text-indigo-400 max-h-24 overflow-y-auto z-50 font-mono">
-                  <div>[DEBUG] Standard list fallback (First 3 files):</div>
-                  {localFiles.slice(0, 3).map(f => (
-                    <div key={f.name as string}>- {f.name} ({f.is_dir ? "Dir" : "File"})</div>
-                  ))}
-                </div>
+                {debugMode && (
+                  <div className="absolute bottom-2 left-2 right-2 bg-slate-950/95 border border-slate-800 p-2 rounded text-[10px] text-indigo-400 max-h-24 overflow-y-auto z-50 font-mono">
+                    <div>[DEBUG] Standard list fallback (First 3 files):</div>
+                    {localFiles.slice(0, 3).map(f => (
+                      <div key={f.name as string}>- {f.name} ({f.is_dir ? "Dir" : "File"})</div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
@@ -832,30 +878,32 @@ function App() {
         </section>
 
         {/* ⇆ DUAL TRANSFER BUTTON CONTAINER */}
-        <section className="flex flex-col justify-center items-center gap-3">
+        <section className="flex flex-col justify-center items-center gap-3 shrink-0">
           <button
             onClick={executePush}
             disabled={getSelectedCount(selectedLocal) === 0 || !selectedDevice}
-            className={`p-3.5 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+            className={`font-semibold text-[10px] tracking-wider uppercase px-4 py-2 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
               getSelectedCount(selectedLocal) > 0 && selectedDevice
-                ? "bg-indigo-600 border-indigo-500 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                : "bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed"
+                ? "bg-gradient-to-r from-indigo-500 to-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-500/20 hover:scale-105"
+                : "bg-slate-900/50 border-slate-800 text-slate-650 cursor-not-allowed"
             }`}
-            title="Transfer selected Mac file to Android"
+            title="Transfer selected Mac files to Android"
           >
-            <ChevronRight className="w-6 h-6" />
+            <span>Push</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={executePull}
             disabled={getSelectedCount(selectedRemote) === 0 || !selectedDevice}
-            className={`p-3.5 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+            className={`font-semibold text-[10px] tracking-wider uppercase px-4 py-2 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 ${
               getSelectedCount(selectedRemote) > 0 && selectedDevice
-                ? "bg-indigo-600 border-indigo-500 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                : "bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed"
+                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-500/20 hover:scale-105"
+                : "bg-slate-900/50 border-slate-800 text-slate-650 cursor-not-allowed"
             }`}
-            title="Transfer selected Android file to Mac"
+            title="Transfer selected Android files to Mac"
           >
-            <ChevronRight className="w-6 h-6 rotate-180" />
+            <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+            <span>Pull</span>
           </button>
         </section>
 
@@ -905,22 +953,26 @@ function App() {
             </div>
           )}
 
-          <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/30 rounded-t-xl">
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-5 h-5 text-indigo-400" />
-              <span className="font-semibold text-sm">Android Device ({remoteFiles.length})</span>
-            </div>
-
-            {/* Remote breadcrumbs */}
-            <div className="flex items-center gap-1 text-xs text-slate-500 font-mono truncate max-w-md">
+          <div className="flex flex-col gap-2 p-4 border-b border-slate-900 bg-slate-950/30 rounded-t-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-indigo-400" />
+                <span className="font-semibold text-xs text-slate-200">Android Device ({remoteFiles.length})</span>
+              </div>
+              
               <button
                 onClick={goUpRemote}
                 disabled={!selectedDevice}
-                className="hover:text-slate-200 transition-colors disabled:cursor-not-allowed cursor-pointer px-1 py-0.5 rounded bg-slate-900 border border-slate-800"
+                className="p-1 hover:bg-slate-800 disabled:opacity-50 disabled:hover:bg-transparent rounded transition-colors text-slate-400 hover:text-white cursor-pointer"
+                title="Go Up"
               >
-                Up
+                <FolderUp className="w-3.5 h-3.5" />
               </button>
-              <span className="truncate">{remotePath}</span>
+            </div>
+            
+            {/* Clickable breadcrumbs */}
+            <div className="flex items-center gap-1 bg-slate-950/60 px-3 py-1 rounded-lg border border-slate-900 overflow-hidden">
+              <Breadcrumbs path={remotePath} onNavigate={(p) => setRemotePath(p)} />
             </div>
           </div>
 
@@ -1007,7 +1059,7 @@ function App() {
                 <VirtualList
                   height={500}
                   itemCount={remoteFiles.length}
-                  rowHeight={40}
+                  rowHeight={36}
                   rowComponent={FileRow}
                   itemData={{
                     files: remoteFiles,
@@ -1017,12 +1069,14 @@ function App() {
                     isLocal: false,
                   }}
                 />
-                <div className="absolute bottom-2 left-2 right-2 bg-slate-950/95 border border-slate-800 p-2 rounded text-[10px] text-indigo-400 max-h-24 overflow-y-auto z-50 font-mono">
-                  <div>[DEBUG] Standard list fallback (First 3 files):</div>
-                  {remoteFiles.slice(0, 3).map(f => (
-                    <div key={f.name as string}>- {f.name} ({f.is_dir ? "Dir" : "File"})</div>
-                  ))}
-                </div>
+                {debugMode && (
+                  <div className="absolute bottom-2 left-2 right-2 bg-slate-950/95 border border-slate-800 p-2 rounded text-[10px] text-indigo-400 max-h-24 overflow-y-auto z-50 font-mono">
+                    <div>[DEBUG] Standard list fallback (First 3 files):</div>
+                    {remoteFiles.slice(0, 3).map(f => (
+                      <div key={f.name as string}>- {f.name} ({f.is_dir ? "Dir" : "File"})</div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
@@ -1036,22 +1090,57 @@ function App() {
       </main>
 
       {/* 📊 DYNAMIC TRANSFER QUEUE DRAWER */}
-      <footer className="w-full bg-slate-950 border-t border-slate-800">
+      <footer className="w-full bg-slate-950 border-t border-slate-900 shrink-0">
         
         {/* Toggle Bar */}
         <div
           onClick={() => setIsQueueOpen(!isQueueOpen)}
-          className="flex items-center justify-between px-6 py-3 cursor-pointer hover:bg-slate-900 border-b border-slate-900 transition-colors"
+          className="flex items-center justify-between px-6 py-2.5 cursor-pointer hover:bg-slate-900/40 border-b border-slate-900 transition-colors select-none"
         >
           <div className="flex items-center gap-3">
-            <Activity className="w-4 h-4 text-indigo-400" />
-            <span className="text-xs font-bold tracking-wide uppercase text-slate-400">
+            <div className="relative flex items-center justify-center">
+              <span className={`w-2 h-2 rounded-full ${
+                Object.values(transfers).filter(t => t.state.status !== "Completed" && t.state.status !== "Failed" && t.state.status !== "Cancelled").length > 0
+                  ? "bg-green-500 animate-pulse-dot"
+                  : "bg-slate-600"
+              }`}></span>
+            </div>
+            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
               Active Transfers ({Object.values(transfers).filter(t => t.state.status !== "Completed" && t.state.status !== "Failed" && t.state.status !== "Cancelled").length})
             </span>
           </div>
-          <span className="text-xs text-indigo-400 font-semibold">
-            {isQueueOpen ? "Collapse Drawer" : "Expand Drawer"}
-          </span>
+
+          {/* Aggregate Progress Bar */}
+          {(() => {
+            const active = Object.values(transfers).filter(
+              t => t.state.status !== "Completed" && t.state.status !== "Failed" && t.state.status !== "Cancelled"
+            );
+            if (active.length > 0) {
+              const sum = active.reduce((acc, curr) => {
+                const isRunning = curr.state.status === "Running";
+                const prog = isRunning ? (curr.state.payload?.percentage || 0) : 0;
+                return acc + prog;
+              }, 0);
+              const avg = Math.round(sum / active.length);
+              return (
+                <div className="flex-1 max-w-xs mx-6 flex items-center gap-2.5">
+                  <div className="flex-1 bg-slate-900 h-1 rounded-full overflow-hidden">
+                    <div
+                      className="bg-indigo-500 h-full transition-all duration-300"
+                      style={{ width: `${avg}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono-val">{avg}%</span>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+            <span>{isQueueOpen ? "Collapse" : "Expand"}</span>
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isQueueOpen ? "rotate-90" : ""}`} />
+          </div>
         </div>
 
         {/* Drawer Content */}
@@ -1066,11 +1155,11 @@ function App() {
                 const progress = metrics?.percentage || (isCompleted ? 100 : 0);
 
                 return (
-                  <div key={task.id} className="flex items-center justify-between bg-slate-900/60 border border-slate-900 p-3 rounded-lg text-xs gap-4">
+                  <div key={task.id} className="flex items-center justify-between bg-slate-900/30 border border-slate-900 p-3 rounded-lg text-xs gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1 gap-2">
                         <span className="font-semibold text-slate-200 truncate flex-1">{task.src_path.split("/").pop()}</span>
-                        <span className={`font-semibold shrink-0 ${
+                        <span className={`font-semibold shrink-0 text-[10px] uppercase tracking-wider ${
                           isCompleted ? "text-green-400" : isFailed ? "text-red-400" : "text-indigo-400 animate-pulse"
                         }`}>
                           {task.state.status}
@@ -1078,7 +1167,7 @@ function App() {
                       </div>
                       
                       {/* Progress Bar */}
-                      <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden mb-1">
+                      <div className="w-full bg-slate-950 h-1 rounded-full overflow-hidden mb-1">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
                             isCompleted ? "bg-green-500" : isFailed ? "bg-red-500" : "bg-indigo-500"
@@ -1089,7 +1178,7 @@ function App() {
 
                       {/* Info Row */}
                       {isRunning && metrics && (
-                        <div className="flex justify-between text-slate-500 text-[10px] font-medium">
+                        <div className="flex justify-between text-slate-500 text-[10px] font-mono-val">
                           <span>{formatBytes(metrics.bytes_transferred)} of {formatBytes(metrics.total_bytes)}</span>
                           <span>{formatSpeed(metrics.speed_bps)}</span>
                           <span>{formatETA(metrics.eta_seconds)} remaining</span>
@@ -1101,7 +1190,7 @@ function App() {
                     {!isCompleted && !isFailed && task.state.status !== "Cancelled" && (
                       <button
                         onClick={() => handleCancelTransfer(task.id)}
-                        className="p-1.5 hover:bg-slate-800 rounded border border-slate-800 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                        className="p-1 hover:bg-slate-800 rounded border border-slate-800 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
                         title="Cancel Transfer"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -1111,7 +1200,7 @@ function App() {
                 );
               })
             ) : (
-              <div className="text-center py-6 text-slate-600 text-xs">
+              <div className="text-center py-6 text-slate-650 text-xs">
                 No active or recent transfers
               </div>
             )}
@@ -1230,6 +1319,19 @@ function App() {
                   type="checkbox"
                   checked={checksumVerify}
                   onChange={(e) => setChecksumVerify(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex justify-between items-center bg-slate-950/50 p-3 rounded-lg border border-slate-950">
+                <div>
+                  <div className="font-semibold text-slate-200">Enable Debug Console</div>
+                  <div className="text-[10px] text-slate-500">Show raw terminal logs for transfers</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={debugMode}
+                  onChange={(e) => setDebugMode(e.target.checked)}
                   className="w-4 h-4 accent-indigo-600 cursor-pointer"
                 />
               </div>

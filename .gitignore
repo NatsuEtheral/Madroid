@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust / Tauri compiler artifacts
 /src-tauri/target
+design
+UI_REDESIGN.md
+
